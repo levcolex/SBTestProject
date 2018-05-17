@@ -7,7 +7,6 @@ package com.example.levcolex.helloatol;
         import android.view.View;
         import android.os.Bundle;
         import android.widget.TextView;
-        import android.os.AsyncTask;
 
         import com.atol.drivers.fptr.Fptr;
         import com.atol.drivers.fptr.IFptr;
@@ -31,20 +30,11 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-       //((TextView)findViewById(R.id.textView)).setText("опс\n" +"Привет");
-
-//        try{
-//            fptr = new Fptr();
-//            fptr.create(this);
-//        } catch (NullPointerException ex){
-//            fptr = null;
-//       }
-
-
     }
 
-    public void onOptions(View view) {
 
+    // обработчик кнопки "Настройки" -> запуск SettingsActivity.DEVICE_SETTINGS
+    public void onOptions(View view) {
         ((TextView)findViewById(R.id.textView)).setText("Настройка драйвера");
         Intent intent = new Intent(this, SettingsActivity.class);
         String settings = getSettings();
@@ -53,12 +43,73 @@ public class MainActivity extends AppCompatActivity {
         }
         intent.putExtra(SettingsActivity.DEVICE_SETTINGS, settings);
         startActivityForResult(intent, REQUEST_SHOW_SETTINGS);
+    }
+
+    // обработчик кнопки "Настройки" последовательно выполняю
+    // put_DeviceSettings - Устанавливает настройки драйвера
+    // put_DeviceEnabled  - Происходит попытка установки связи с устройством
+    // GetStatus          - Заполняет свойства драйвера текущим состоянием ККТ
+    //
+    public void onTest(View view) {
+
+        ((TextView)findViewById(R.id.textView)).setText("Проверка...");
+        IFptr fptr = new Fptr();
+        try {
+            fptr.create(getApplication());
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "\nУстановка параметров драйвера..."
+
+            );
+            if (fptr.put_DeviceSettings(getSettings()) < 0) {
+                checkError(fptr);
+            }
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "Ок");
+
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "\nУстановка соединения...");
+
+            if (fptr.put_DeviceEnabled(true) < 0) {
+                checkError(fptr);
+            }
+
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "Ок");
+
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "\nПроверка связи...");
+            if (fptr.GetStatus() < 0) { // читаем данные из устройства
+                checkError(fptr);
+            }
+
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "Ок");
+
+
+            // можно получить доступ к данным (get_Date(), get_Time() и тд)
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "\n" + fptr.get_Date().toString() + "   " + fptr.get_Time().toString());
+
+
+        } catch (Exception e) {
+            ((TextView)findViewById(R.id.textView)).setText(e.toString());
+
+        } finally {
+            fptr.destroy();
+        }
 
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data){
-        if(requestCode==REQUEST_SHOW_SETTINGS){
+        if(requestCode==REQUEST_SHOW_SETTINGS){ // обработчик завершения SettingsActivity.DEVICE_SETTINGS
             if(resultCode==RESULT_OK){
                 String settings = data.getExtras().getString(SettingsActivity.DEVICE_SETTINGS);
                 ((TextView)findViewById(R.id.textView)).setText(settings);
@@ -70,6 +121,23 @@ public class MainActivity extends AppCompatActivity {
         }
         else{
             super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+
+    private void checkError(IFptr fptr) throws Exception {
+        int rc = fptr.get_ResultCode(); // Возвращает результат последней операции (см. dto_errors.h)
+        if (rc < 0) {
+            String rd = fptr.get_ResultDescription(), // Возвращает текстовое описание результата последней операции
+                    bpd = null;
+            if (rc == -6) {
+                bpd = fptr.get_BadParamDescription(); // Возвращает текстовое описание неверного параметра
+            }
+            if (bpd != null) {
+                throw new Exception(String.format("[%d] %s (%s)", rc, rd, bpd));
+            } else {
+                throw new Exception(String.format("[%d] %s", rc, rd));
+            }
         }
     }
 
