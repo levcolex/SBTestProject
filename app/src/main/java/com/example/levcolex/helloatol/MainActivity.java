@@ -120,6 +120,33 @@ public class MainActivity extends AppCompatActivity {
         fptr.PrintString();
     }
 
+
+    private void AppendPos(IFptr fptr, String name, double price, double quantity, double positionSum) throws Exception
+    {
+        // добавление позиции в чек
+        if (fptr.put_TaxNumber(IFptr.TAX_VAT_18) < 0) { // Устанавливает номер налога.
+            checkError(fptr);
+        }
+        if (fptr.put_PositionSum(price*quantity) < 0) { // Устанавливает сумму позиции
+            checkError(fptr);
+        }
+        if (fptr.put_Quantity(quantity) < 0) { // Устанавливает количество
+            checkError(fptr);
+        }
+        if (fptr.put_Price(price) < 0) {  // Устанавливает цену
+            checkError(fptr);
+        }
+        if (fptr.put_TextWrap(IFptr.WRAP_WORD) < 0) { // перенос слов
+            checkError(fptr);
+        }
+        if (fptr.put_Name(name) < 0) { // наименование позиции
+            checkError(fptr);
+        }
+        if (fptr.Registration() < 0) { // Производит регистрацию продажи / прихода.
+            checkError(fptr);
+        }
+    }
+
     public void onPrintCheck(View view) {
 
         IFptr fptr = new Fptr();
@@ -208,31 +235,18 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
+
+
             double price = 122, quantity = 1;
             BigDecimal sum = new BigDecimal(0);
-            // добавление позиции в чек
-            if (fptr.put_TaxNumber(IFptr.TAX_VAT_18) < 0) { // Устанавливает номер налога.
-                checkError(fptr);
-            }
-            if (fptr.put_PositionSum(price*quantity) < 0) { // Устанавливает сумму позиции
-                checkError(fptr);
-            }
-            if (fptr.put_Quantity(quantity) < 0) { // Устанавливает количество
-                checkError(fptr);
-            }
-            if (fptr.put_Price(price) < 0) {  // Устанавливает цену
-                checkError(fptr);
-            }
-            if (fptr.put_TextWrap(IFptr.WRAP_WORD) < 0) { // перенос слов
-                checkError(fptr);
-            }
-            if (fptr.put_Name("Кефир") < 0) { // наименование позиции
-                checkError(fptr);
-            }
-            if (fptr.Registration() < 0) { // Производит регистрацию продажи / прихода.
-                checkError(fptr);
-            }
-            // подсчет суммы
+
+            // AppendPos(IFptr fptr, String name, double price, double quantity, double positionSum
+            AppendPos(fptr, "Кефир", price, quantity, price*quantity);
+            sum = sum.add(new BigDecimal(price).multiply(new BigDecimal(quantity)));
+
+            price = 44;
+            quantity = 4;
+            AppendPos(fptr, "Снежок", price, quantity, price*quantity);
             sum = sum.add(new BigDecimal(price).multiply(new BigDecimal(quantity)));
 
             // Оплата
