@@ -12,6 +12,7 @@ package com.example.levcolex.helloatol;
         import com.atol.drivers.fptr.IFptr;
         import com.atol.drivers.fptr.settings.SettingsActivity;
 
+        import java.math.BigDecimal;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -98,14 +99,169 @@ public class MainActivity extends AppCompatActivity {
                             "\n" + fptr.get_Date().toString() + "   " + fptr.get_Time().toString());
 
 
+            fptr.put_Caption("Print test...");
+            fptr.put_Alignment( 0 );            // Alignment::AlignmentLeft
+            fptr.put_TextWrap( 0 );             // TextWrap::TextWrapNone
+            fptr.PrintString();
+
         } catch (Exception e) {
             ((TextView)findViewById(R.id.textView)).setText(e.toString());
 
         } finally {
             fptr.destroy();
         }
-
     }
+
+    private void printText(IFptr fptr, String s, int align, int wwrap)
+    {
+        fptr.put_Caption(s);
+        fptr.put_Alignment( align );            // Alignment::AlignmentLeft
+        fptr.put_TextWrap( wwrap );             // TextWrap::TextWrapNone
+        fptr.PrintString();
+    }
+
+    public void onPrintCheck(View view) {
+
+        IFptr fptr = new Fptr();
+        try {
+
+            // 1. создание и инициализация
+            fptr.create(getApplication());
+            ((TextView)findViewById(R.id.textView)).setText(
+                    ((TextView)findViewById(R.id.textView)).getText() +
+                            "\nПечать чека..."
+
+            );
+            if (fptr.put_DeviceSettings(getSettings()) < 0) {
+                checkError(fptr);
+            }
+            if (fptr.put_DeviceEnabled(true) < 0) {
+                checkError(fptr);
+            }
+            if (fptr.GetStatus() < 0) { // читаем данные из устройства
+                checkError(fptr);
+            }
+
+            // Аннулируем чек. (непонятно зачем, возможно чтобы его можно было перепечатать
+            // в случае ошибки)
+            try {
+                if (fptr.CancelCheck() < 0) {
+                    checkError(fptr);
+                }
+            } catch (Exception e) {
+                int rc = fptr.get_ResultCode();
+                if (rc != -16 && rc != -3801) {
+                    throw e;
+                }
+            }
+
+            try {
+
+                if (fptr.put_Mode(IFptr.MODE_REGISTRATION) < 0) { // Устанаваливает значение режима работы. { ? }
+                    checkError(fptr);
+                }
+                if (fptr.SetMode() < 0) { // Устанавливает режим ККТ.
+                                          // Выполняет вход в режим {put_Mode()} с паролем UserPassword.
+                    checkError(fptr);
+                }
+                if (fptr.put_CheckType(IFptr.CHEQUE_TYPE_SELL) < 0) { // Устанавливает тип чека.
+                    checkError(fptr);
+                }
+                if (fptr.OpenCheck() < 0) { // Открывает чек в ККТ
+                    checkError(fptr);
+                }
+
+
+            } catch (Exception e) {
+                // Проверка на превышение смены {?}
+                if (fptr.get_ResultCode() == -3822) {
+
+                    if (fptr.put_Mode(IFptr.MODE_REPORT_CLEAR) < 0) {
+                        checkError(fptr);
+                    }
+                    if (fptr.SetMode() < 0) {
+                        checkError(fptr);
+                    }
+                    if (fptr.put_ReportType(IFptr.REPORT_Z) < 0) {
+                        checkError(fptr);
+                    }
+                    if (fptr.Report() < 0) {
+                        checkError(fptr);
+                    }
+
+                // еще раз открытие чека
+                    if (fptr.put_Mode(IFptr.MODE_REGISTRATION) < 0) { // Устанаваливает значение режима работы. { ? }
+                        checkError(fptr);
+                    }
+                    if (fptr.SetMode() < 0) { // Устанавливает режим ККТ.
+                        // Выполняет вход в режим {put_Mode()} с паролем UserPassword.
+                        checkError(fptr);
+                    }
+                    if (fptr.put_CheckType(IFptr.CHEQUE_TYPE_SELL) < 0) { // Устанавливает тип чека.
+                        checkError(fptr);
+                    }
+                    if (fptr.OpenCheck() < 0) { // Открывает чек в ККТ
+                        checkError(fptr);
+                    }
+                } else {
+                    throw e;
+                }
+            }
+
+            double price = 122, quantity = 1;
+            BigDecimal sum = new BigDecimal(0);
+            // добавление позиции в чек
+            if (fptr.put_TaxNumber(IFptr.TAX_VAT_18) < 0) { // Устанавливает номер налога.
+                checkError(fptr);
+            }
+            if (fptr.put_PositionSum(price*quantity) < 0) { // Устанавливает сумму позиции
+                checkError(fptr);
+            }
+            if (fptr.put_Quantity(quantity) < 0) { // Устанавливает количество
+                checkError(fptr);
+            }
+            if (fptr.put_Price(price) < 0) {  // Устанавливает цену
+                checkError(fptr);
+            }
+            if (fptr.put_TextWrap(IFptr.WRAP_WORD) < 0) { // перенос слов
+                checkError(fptr);
+            }
+            if (fptr.put_Name("Кефир") < 0) { // наименование позиции
+                checkError(fptr);
+            }
+            if (fptr.Registration() < 0) { // Производит регистрацию продажи / прихода.
+                checkError(fptr);
+            }
+            // подсчет суммы
+            sum = sum.add(new BigDecimal(price).multiply(new BigDecimal(quantity)));
+
+            // Оплата
+            if (fptr.put_Summ(sum.doubleValue()) < 0) {
+                checkError(fptr);
+            }
+            if (fptr.put_TypeClose(0) < 0) {
+                checkError(fptr);
+            }
+            if (fptr.Payment() < 0) {
+                checkError(fptr);
+            }
+
+            // Закрываем чек
+            if (fptr.put_TypeClose(0) < 0) {
+                checkError(fptr);
+            }
+            if (fptr.CloseCheck() < 0) {
+                checkError(fptr);
+            }
+
+        } catch (Exception e) {
+            ((TextView)findViewById(R.id.textView)).setText(e.toString());
+
+        } finally {
+            fptr.destroy();
+        }
+    }
+
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data){
