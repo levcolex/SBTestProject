@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<merger version="3"><dataSet config="main"><source path="C:\Users\levcolex\AndroidStudioProjects\HelloAtol\fptrRes\src\main\jniLibs"/></dataSet><dataSet config="debug"><source path="C:\Users\levcolex\AndroidStudioProjects\HelloAtol\fptrRes\src\debug\jniLibs"/></dataSet></merger>
+<merger version="3"><dataSet config="main"><source path="D:\Dropbox\Work\Android\SBTestProject\fptrRes\src\main\jniLibs"/></dataSet><dataSet config="debug"><source path="D:\Dropbox\Work\Android\SBTestProject\fptrRes\src\debug\jniLibs"/></dataSet></merger>
