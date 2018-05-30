@@ -1,18 +1,27 @@
 package com.example.levcolex.helloatol;
 
-        import android.content.Context;
-        import android.content.Intent;
-        import android.content.SharedPreferences;
-        import android.support.v7.app.AppCompatActivity;
-        import android.view.View;
-        import android.os.Bundle;
-        import android.widget.TextView;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.support.annotation.NonNull;
+import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.os.Bundle;
+import android.widget.TextView;
 
-        import com.atol.drivers.fptr.Fptr;
-        import com.atol.drivers.fptr.IFptr;
-        import com.atol.drivers.fptr.settings.SettingsActivity;
+import com.atol.drivers.fptr.Fptr;
+import com.atol.drivers.fptr.IFptr;
+import com.atol.drivers.fptr.settings.SettingsActivity;
 
-        import java.math.BigDecimal;
+import com.example.levcolex.helloatol.api.FiscalDriverImpl;
+import com.example.levcolex.helloatol.api.FiscalDriver;
+
+import com.example.levcolex.helloatol.model.Order;
+import com.example.levcolex.helloatol.model.Printable;
+
+import java.math.BigDecimal;
+import java.util.List;
+
 
 
 public class MainActivity extends AppCompatActivity {
@@ -21,22 +30,24 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences preferences;
     private static final String FPTR_PREFERENCES = "FPTR_PREFERENCES";
 
-    //TextView myTextView = (TextView)findViewById(R.id.textView);
+    @NonNull
+    private TextView infoTextView;
 
-     @Override
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         preferences = getSharedPreferences(FPTR_PREFERENCES, Context.MODE_PRIVATE);
 
         setContentView(R.layout.activity_main);
+        infoTextView = findViewById(R.id.textView);
 
     }
 
 
     // обработчик кнопки "Настройки" -> запуск SettingsActivity.DEVICE_SETTINGS
     public void onOptions(View view) {
-        ((TextView)findViewById(R.id.textView)).setText("Настройка драйвера");
+        ((TextView) findViewById(R.id.textView)).setText("Настройка драйвера");
         Intent intent = new Intent(this, SettingsActivity.class);
         String settings = getSettings();
         if (settings == null) {
@@ -46,88 +57,110 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_SHOW_SETTINGS);
     }
 
-    // обработчик кнопки "Настройки" последовательно выполняю
-    // put_DeviceSettings - Устанавливает настройки драйвера
-    // put_DeviceEnabled  - Происходит попытка установки связи с устройством
-    // GetStatus          - Заполняет свойства драйвера текущим состоянием ККТ
-    //
+
     public void onTest(View view) {
 
-        ((TextView)findViewById(R.id.textView)).setText("Проверка...");
+
+        IFptr fptr = new Fptr();
+        try {
+            fptr.create(getApplication()); // для create требуется контекст, пока не нашел как его получить
+                                           // для класса не производного от контекста...
+        }
+        catch (Exception e) {
+            infoTextView.setText(e.toString());
+            return;
+        }
+
+
+//      TODO Implement FiscalDriverImpl interface and test the code below
+        TestFiscalDriver driver = new TestFiscalDriver(new FiscalDriverImpl(fptr, getSettings())); // наверное, логично настройки передать в конструктор?
+
+        try {
+            driver.test();
+        } catch (Exception e) {
+            infoTextView.setText(e.toString());
+        }
+        finally {
+            fptr.destroy();
+        }
+
+
+        /*
+        ((TextView) findViewById(R.id.textView)).setText("Проверка...");
         IFptr fptr = new Fptr();
         try {
             fptr.create(getApplication());
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "\nУстановка параметров драйвера..."
 
             );
             if (fptr.put_DeviceSettings(getSettings()) < 0) {
                 checkError(fptr);
             }
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "Ок");
 
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "\nУстановка соединения...");
 
             if (fptr.put_DeviceEnabled(true) < 0) {
                 checkError(fptr);
             }
 
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "Ок");
 
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "\nПроверка связи...");
             if (fptr.GetStatus() < 0) { // читаем данные из устройства
                 checkError(fptr);
             }
 
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "Ок");
 
 
             // можно получить доступ к данным (get_Date(), get_Time() и тд)
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "\n" + fptr.get_Date().toString() + "   " + fptr.get_Time().toString());
 
 
             fptr.put_Caption("Print test...");
-            fptr.put_Alignment( 0 );            // Alignment::AlignmentLeft
-            fptr.put_TextWrap( 0 );             // TextWrap::TextWrapNone
+            fptr.put_Alignment(0);            // Alignment::AlignmentLeft
+            fptr.put_TextWrap(0);             // TextWrap::TextWrapNone
             fptr.PrintString();
 
         } catch (Exception e) {
-            ((TextView)findViewById(R.id.textView)).setText(e.toString());
+            ((TextView) findViewById(R.id.textView)).setText(e.toString());
 
         } finally {
             fptr.destroy();
         }
+
+        */
     }
 
-    private void printText(IFptr fptr, String s, int align, int wwrap)
-    {
+    private void printText(IFptr fptr, String s, int align, int wwrap) {
         fptr.put_Caption(s);
-        fptr.put_Alignment( align );            // Alignment::AlignmentLeft
-        fptr.put_TextWrap( wwrap );             // TextWrap::TextWrapNone
+        fptr.put_Alignment(align);            // Alignment::AlignmentLeft
+        fptr.put_TextWrap(wwrap);             // TextWrap::TextWrapNone
         fptr.PrintString();
     }
 
 
-    private void AppendPos(IFptr fptr, String name, double price, double quantity, double positionSum) throws Exception
-    {
+    private void AppendPos(IFptr fptr, String name, double price, double quantity, double positionSum) throws Exception {
         // добавление позиции в чек
         if (fptr.put_TaxNumber(IFptr.TAX_VAT_18) < 0) { // Устанавливает номер налога.
             checkError(fptr);
         }
-        if (fptr.put_PositionSum(price*quantity) < 0) { // Устанавливает сумму позиции
+        if (fptr.put_PositionSum(price * quantity) < 0) { // Устанавливает сумму позиции
             checkError(fptr);
         }
         if (fptr.put_Quantity(quantity) < 0) { // Устанавливает количество
@@ -154,8 +187,8 @@ public class MainActivity extends AppCompatActivity {
 
             // 1. создание и инициализация
             fptr.create(getApplication());
-            ((TextView)findViewById(R.id.textView)).setText(
-                    ((TextView)findViewById(R.id.textView)).getText() +
+            ((TextView) findViewById(R.id.textView)).setText(
+                    ((TextView) findViewById(R.id.textView)).getText() +
                             "\nПечать чека..."
 
             );
@@ -188,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
                     checkError(fptr);
                 }
                 if (fptr.SetMode() < 0) { // Устанавливает режим ККТ.
-                                          // Выполняет вход в режим {put_Mode()} с паролем UserPassword.
+                    // Выполняет вход в режим {put_Mode()} с паролем UserPassword.
                     checkError(fptr);
                 }
                 if (fptr.put_CheckType(IFptr.CHEQUE_TYPE_SELL) < 0) { // Устанавливает тип чека.
@@ -216,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
                         checkError(fptr);
                     }
 
-                // еще раз открытие чека
+                    // еще раз открытие чека
                     if (fptr.put_Mode(IFptr.MODE_REGISTRATION) < 0) { // Устанаваливает значение режима работы. { ? }
                         checkError(fptr);
                     }
@@ -236,17 +269,16 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
-
             double price = 122, quantity = 1;
             BigDecimal sum = new BigDecimal(0);
 
             // AppendPos(IFptr fptr, String name, double price, double quantity, double positionSum
-            AppendPos(fptr, "Кефир", price, quantity, price*quantity);
+            AppendPos(fptr, "Кефир", price, quantity, price * quantity);
             sum = sum.add(new BigDecimal(price).multiply(new BigDecimal(quantity)));
 
             price = 44;
             quantity = 4;
-            AppendPos(fptr, "Снежок", price, quantity, price*quantity);
+            AppendPos(fptr, "Снежок", price, quantity, price * quantity);
             sum = sum.add(new BigDecimal(price).multiply(new BigDecimal(quantity)));
 
             // Оплата
@@ -269,7 +301,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
         } catch (Exception e) {
-            ((TextView)findViewById(R.id.textView)).setText(e.toString());
+            ((TextView) findViewById(R.id.textView)).setText(e.toString());
 
         } finally {
             fptr.destroy();
@@ -278,18 +310,16 @@ public class MainActivity extends AppCompatActivity {
 
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
-        if(requestCode==REQUEST_SHOW_SETTINGS){ // обработчик завершения SettingsActivity.DEVICE_SETTINGS
-            if(resultCode==RESULT_OK){
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_SHOW_SETTINGS) { // обработчик завершения SettingsActivity.DEVICE_SETTINGS
+            if (resultCode == RESULT_OK) {
                 String settings = data.getExtras().getString(SettingsActivity.DEVICE_SETTINGS);
-                ((TextView)findViewById(R.id.textView)).setText(settings);
+                ((TextView) findViewById(R.id.textView)).setText(settings);
                 setSettings(settings);
+            } else {
+                ((TextView) findViewById(R.id.textView)).setText("Ошибка");
             }
-            else{
-                ((TextView)findViewById(R.id.textView)).setText("Ошибка");
-            }
-        }
-        else{
+        } else {
             super.onActivityResult(requestCode, resultCode, data);
         }
     }
