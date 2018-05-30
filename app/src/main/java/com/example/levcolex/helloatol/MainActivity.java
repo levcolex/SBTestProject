@@ -12,12 +12,16 @@ import android.widget.TextView;
 import com.atol.drivers.fptr.Fptr;
 import com.atol.drivers.fptr.IFptr;
 import com.atol.drivers.fptr.settings.SettingsActivity;
+
+import com.example.levcolex.helloatol.api.FiscalDriverImpl;
 import com.example.levcolex.helloatol.api.FiscalDriver;
+
 import com.example.levcolex.helloatol.model.Order;
 import com.example.levcolex.helloatol.model.Printable;
 
 import java.math.BigDecimal;
 import java.util.List;
+
 
 
 public class MainActivity extends AppCompatActivity {
@@ -53,22 +57,35 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_SHOW_SETTINGS);
     }
 
-    // обработчик кнопки "Настройки" последовательно выполняю
-    // put_DeviceSettings - Устанавливает настройки драйвера
-    // put_DeviceEnabled  - Происходит попытка установки связи с устройством
-    // GetStatus          - Заполняет свойства драйвера текущим состоянием ККТ
-    //
+
     public void onTest(View view) {
-        // TODO Implement TestFiscalDriver interface and test the code below
-//        TestFiscalDriver driver = new TestFiscalDriver(new FiscalDriverImplementation(IFptr));
-//
-//        try {
-//            driver.test();
-//        } catch (Exception e) {
-//            infoTextView.setText(e.toString());
-//        }
 
 
+        IFptr fptr = new Fptr();
+        try {
+            fptr.create(getApplication()); // для create требуется контекст, пока не нашел как его получить
+                                           // для класса не производного от контекста...
+        }
+        catch (Exception e) {
+            infoTextView.setText(e.toString());
+            return;
+        }
+
+
+//      TODO Implement FiscalDriverImpl interface and test the code below
+        TestFiscalDriver driver = new TestFiscalDriver(new FiscalDriverImpl(fptr, getSettings())); // наверное, логично настройки передать в конструктор?
+
+        try {
+            driver.test();
+        } catch (Exception e) {
+            infoTextView.setText(e.toString());
+        }
+        finally {
+            fptr.destroy();
+        }
+
+
+        /*
         ((TextView) findViewById(R.id.textView)).setText("Проверка...");
         IFptr fptr = new Fptr();
         try {
@@ -126,6 +143,8 @@ public class MainActivity extends AppCompatActivity {
         } finally {
             fptr.destroy();
         }
+
+        */
     }
 
     private void printText(IFptr fptr, String s, int align, int wwrap) {
